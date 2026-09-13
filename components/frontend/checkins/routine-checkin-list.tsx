@@ -1,0 +1,78 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { motion } from "framer-motion";
+import type { Routine } from "@/lib/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function RoutineCheckinList({ routines }: { routines: Routine[] }) {
+  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  function toggle(routine: Routine) {
+    const next = new Set(completed);
+    const willComplete = !next.has(routine.id);
+    if (willComplete) next.add(routine.id);
+    else next.delete(routine.id);
+    setCompleted(next);
+
+    startTransition(async () => {
+      try {
+        await api.checkins.upsert({
+          routineId: routine.id,
+          date: todayISO(),
+          completed: willComplete,
+        });
+      } catch {
+        toast.error(`Couldn't save "${routine.name}" — check the API server.`);
+      }
+    });
+  }
+
+  if (routines.length === 0) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        No routines yet. Add one from Settings to start tracking today.
+      </Card>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {routines.map((routine) => {
+        const isDone = completed.has(routine.id);
+        return (
+          <motion.li key={routine.id} layout>
+            <Card
+              className="flex cursor-pointer items-center gap-3 p-4"
+              onClick={() => toggle(routine)}
+            >
+              <Checkbox checked={isDone} disabled={isPending} />
+              <div className="flex-1">
+                <p
+                  className={
+                    isDone ? "text-muted-foreground line-through" : ""
+                  }
+                >
+                  {routine.name}
+                </p>
+                {routine.description && (
+                  <p className="text-xs text-muted-foreground">
+                    {routine.description}
+                  </p>
+                )}
+              </div>
+            </Card>
+          </motion.li>
+        );
+      })}
+    </ul>
+  );
+}

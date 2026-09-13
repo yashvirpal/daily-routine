@@ -1,0 +1,101 @@
+// Prisma schema for the Daily Routine & Habit Tracker.
+//
+// Connects to the shared local Postgres instance (see ../../../../database)
+// using a dedicated `daily_routine` schema (set via the `schema` query param
+// on DATABASE_URL) so this project's tables don't collide with other
+// projects sharing the same "app" database.
+//
+// Multi-user: every Routine belongs to a User. Role gates the admin panel
+// (ADMIN sees/manages everything; USER sees only their own routines/check-ins)
+// — see CONTEXT.md "Auth & Roles". The first user ever registered becomes
+// ADMIN automatically (bootstrap — there's no separate seed step); everyone
+// after that registers as USER.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  CUSTOM
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routines Routine[]
+}
+
+model Routine {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  icon        String? // lucide-react icon name
+  color       String? // Tailwind color token, e.g. "emerald"
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  frequency   Frequency @default(DAILY)
+  /// For WEEKLY/CUSTOM: days of week this routine is due, 0 (Sun) - 6 (Sat).
+  /// Empty for DAILY.
+  daysOfWeek  Int[]     @default([])
+  targetCount Int       @default(1) // times per due day to mark complete
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  checkIns DailyLog[]
+
+  @@index([userId, isActive])
+}
+
+/// Site-wide config, admin-editable. Singleton row (id is always
+/// "singleton") — see getAppSettings()'s upsert, which creates it lazily so
+/// there's no separate seed step, consistent with the rest of this app.
+model AppSettings {
+  id               String   @id @default("singleton")
+  siteName         String   @default("Daily Routine")
+  registrationOpen Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+}
+
+model DailyLog {
+  id String @id @default(cuid())
+
+  routineId String
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  /// Calendar day this check-in is for (time component ignored).
+  date      DateTime @db.Date
+  completed Boolean  @default(true)
+  count     Int      @default(1) // supports targetCount > 1
+  note      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([routineId, date])
+  @@index([date])
+}
