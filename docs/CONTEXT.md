@@ -395,8 +395,12 @@ Key points worth knowing before touching any of this:
       attribution in aggregate)
 - [x] Admin Settings — site-wide config (`AppSettings` singleton row: site
       name shown in the nav + browser tab, an "allow new registrations"
-      toggle enforced in `registerUser()`) plus self-service profile/password
-      update (`PATCH /api/auth/me`, requires current password to change it)
+      toggle enforced in `registerUser()`)
+- [x] Self-service profile/password update (`PATCH /api/auth/me`, requires
+      current password to change it) — `ProfileSettingsForm`
+      (`components/account/`, shared — not admin-only despite living under
+      `components/admin/` originally) on both `/admin/settings` and the
+      regular user's `/settings` (alongside their routine list)
 - [x] **Deployed to production** — Vercel (`https://daily-routine-six-alpha.vercel.app`)
       backed by Prisma Postgres (Accelerate). `lib/db.ts` detects the
       `prisma://`/`prisma+postgres://` URL scheme at runtime and only
@@ -798,3 +802,20 @@ purpose on Vercel — left unset there rather than treated as required.
   code), confirmed active-link highlighting doesn't cross-match between
   the personal and admin "Analytics"/"Settings" pairs, and the full
   Playwright suite still passes.
+- **Profile update for regular users too** (explicit follow-up request —
+  this was a known gap, flagged when Admin Settings shipped: the
+  `PATCH /api/auth/me` endpoint was never admin-gated, there was just no
+  UI for a non-admin to reach it): moved `ProfileSettingsForm` out of
+  `components/admin/` to `components/account/` (it was never actually
+  admin-specific) and added it to the regular user's `/settings` page,
+  above the existing routine list. Caught and fixed a real regression this
+  introduced before calling it done: the new form's "Name" field collided
+  with the "Add routine" dialog's "Name" field on the same page —
+  Playwright's `getByLabel` substring-matches, so even relabeling to "Your
+  name" didn't fully fix it (still a substring of "Name"); scoped the
+  pre-existing e2e test's locator to the dialog instead, the more correct
+  fix regardless of this change (a test shouldn't depend on page-wide
+  label uniqueness). Verified the full profile-update flow for a
+  non-admin end-to-end (change password via the new UI, log out, log back
+  in with the new password), not just that it rendered, and reverted the
+  test account's password back afterward. Full Playwright suite passes.

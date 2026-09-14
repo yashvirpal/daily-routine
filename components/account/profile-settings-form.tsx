@@ -62,7 +62,7 @@ export function ProfileSettingsForm({ user }: { user: User }) {
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="profile-name">Name</Label>
+            <Label htmlFor="profile-name">Your name</Label>
             <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="flex flex-col gap-2">

@@ -7,7 +7,10 @@ test("create a routine and check it in for today", async ({ page }) => {
   await registerAndLogin(page);
   await page.goto("/settings");
   await page.getByRole("button", { name: "Add routine" }).click();
-  await page.getByLabel("Name").fill(name);
+  // Scoped to the dialog — the page also has a profile "Your name" field
+  // that "Name" substring-matches otherwise (see getByLabel's default
+  // matching behavior).
+  await page.getByRole("dialog").getByLabel("Name").fill(name);
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByText(name)).toBeVisible();
 

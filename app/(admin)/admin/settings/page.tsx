@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ProfileSettingsForm } from "@/components/admin/profile-settings-form";
+import { ProfileSettingsForm } from "@/components/account/profile-settings-form";
 import { SiteSettingsForm } from "@/components/admin/site-settings-form";
 import { getSession } from "@/lib/auth";
 import { getUserById } from "@/lib/server/auth";
