@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoutineCheckinList } from "@/components/frontend/checkins/routine-checkin-list";
 import { getSession } from "@/lib/auth";
 import { listRoutines } from "@/lib/server/routines";
+
+export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
   const session = await getSession();

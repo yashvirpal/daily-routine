@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { CalendarCheck } from "lucide-react";
 import type { Routine } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -38,9 +42,16 @@ export function RoutineCheckinList({ routines }: { routines: Routine[] }) {
 
   if (routines.length === 0) {
     return (
-      <Card className="p-6 text-center text-sm text-muted-foreground">
-        No routines yet. Add one from Settings to start tracking today.
-      </Card>
+      <EmptyState
+        icon={CalendarCheck}
+        title="No routines yet"
+        description="Add your first routine from Settings to start tracking today."
+        action={
+          <Button asChild size="sm">
+            <Link href="/settings">Go to Settings</Link>
+          </Button>
+        }
+      />
     );
   }
 

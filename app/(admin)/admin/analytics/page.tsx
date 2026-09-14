@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { AnalyticsReport } from "@/components/frontend/analytics/analytics-report";
 import type { Period } from "@/components/frontend/analytics/period-tabs";
+
+export const metadata: Metadata = { title: "Admin · Analytics" };
 
 const VALID_PERIODS: Period[] = ["today", "week", "month", "year"];
 

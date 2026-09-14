@@ -410,7 +410,21 @@ Key points worth knowing before touching any of this:
       welcome email on registration, and a daily summary email via Vercel
       Cron, all through `lib/server/email.ts` (Resend; a no-op logger until
       `RESEND_API_KEY` is set — see Next Tasks)
-- [ ] UI — functional scaffold only; needs a real design pass (see Design Workflow)
+- [x] Layout pass — widened the app's max content width (768px → 1024px;
+      auth pages stay narrow via their own card width, unaffected), a
+      shared `EmptyState` component (icon + title + description + CTA)
+      replacing the plain "no routines yet" text boxes on Today/Settings,
+      and a site-wide footer (developer credit)
+- [x] SEO — full `<head>` metadata (Open Graph, Twitter card, `metadataBase`,
+      per-page `<title>`s via a template), `robots.txt`/`sitemap.xml`
+      (file-based, only the truly-public pages — everything else requires
+      auth so is disallowed rather than wasting crawl budget on redirects),
+      `theme-color` viewport meta for both themes
+- [x] Favicon — code-generated (`app/icon.tsx`/`apple-icon.tsx` via
+      `next/og`'s `ImageResponse`, no external image tool needed): a
+      checkmark on the brand terracotta, replacing the default Next.js icon
+- [ ] UI — still a functional scaffold beyond the layout pass above; a real
+      design pass (see Design Workflow) is unstarted
 
 ## Current Milestone
 
@@ -740,3 +754,24 @@ purpose on Vercel — left unset there rather than treated as required.
   (0 errors). Confirmed `next build` doesn't choke on the new
   `useSearchParams()` usage in the reset-password page (wrapped in
   `Suspense`, as the framework requires).
+- **Layout review + SEO + footer + favicon** (explicit follow-up request;
+  the `frontend-design` subagent still isn't loaded in this session — needs
+  a restart to register — so did the review directly instead, same
+  standard): screenshotted every main screen first rather than guessing,
+  which found one real, consistent problem — every page capped at a 768px
+  column, leaving most of a normal desktop viewport empty — not a spacing
+  or component issue, those were already fine. Widened to 1024px (root
+  `<main>` + `Nav`'s inner width only; auth pages keep their own narrow
+  card, untouched); replaced the plain empty-state text boxes on Today/
+  Settings with a shared `EmptyState` component (icon, title, description,
+  CTA); added a site-wide footer with a developer credit link. SEO: full
+  metadata (`metadataBase`, Open Graph, Twitter card, per-page `<title>`
+  via a template — added to every page), file-based `robots.txt`/
+  `sitemap.xml` (only `/login`/`/register` are public; everything else
+  requires auth so is disallowed rather than wasting crawl budget), and
+  `theme-color` for both themes. Favicon replaced with a code-generated
+  one (`next/og`'s `ImageResponse` — no image-editing tool needed): a
+  checkmark on the brand terracotta. Verified with a full `next build`
+  (confirmed `/icon`, `/apple-icon`, `/robots.txt`, `/sitemap.xml` all
+  present in the route list), the full Playwright suite, and real
+  screenshots of the before/after — not just code review.

@@ -27,7 +27,7 @@ export function Nav({ user, siteName }: { user: User | null; siteName: string })
 
   return (
     <nav className="border-b">
-      <div className="mx-auto flex max-w-3xl items-center gap-1 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-3">
         <span className="mr-4 font-semibold">{siteName}</span>
         {user &&
           links.map(({ href, label, icon: Icon }) => (

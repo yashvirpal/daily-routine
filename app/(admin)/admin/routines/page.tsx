@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { TablePagination } from "@/components/admin/table-pagination";
 import { TableSearch } from "@/components/admin/table-search";
 import { RoutineTable } from "@/components/admin/routine-table";
 import { listAllRoutines } from "@/lib/server/admin";
+
+export const metadata: Metadata = { title: "Admin · Routines" };
 
 const PAGE_SIZE = 10;
 

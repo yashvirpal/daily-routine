@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { TablePagination } from "@/components/admin/table-pagination";
 import { TableSearch } from "@/components/admin/table-search";
 import { UserTable } from "@/components/admin/user-table";
 import { getSession } from "@/lib/auth";
 import { listAllUsers } from "@/lib/server/admin";
+
+export const metadata: Metadata = { title: "Admin · Users" };
 
 const PAGE_SIZE = 10;
 

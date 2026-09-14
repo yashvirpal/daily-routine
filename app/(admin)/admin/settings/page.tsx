@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ProfileSettingsForm } from "@/components/admin/profile-settings-form";
 import { SiteSettingsForm } from "@/components/admin/site-settings-form";
 import { getSession } from "@/lib/auth";
 import { getUserById } from "@/lib/server/auth";
 import { getAppSettings } from "@/lib/server/app-settings";
+
+export const metadata: Metadata = { title: "Admin · Settings" };
 
 export default async function AdminSettingsPage() {
   // AdminLayout already redirects anything but a signed-in admin away —

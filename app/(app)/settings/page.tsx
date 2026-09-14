@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoutineList } from "@/components/frontend/routines/routine-list";
 import { getSession } from "@/lib/auth";
 import { listRoutines } from "@/lib/server/routines";
+
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const session = await getSession();

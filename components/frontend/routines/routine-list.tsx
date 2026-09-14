@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import type { Routine } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -83,9 +84,11 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
       </div>
 
       {routines.length === 0 ? (
-        <Card className="p-6 text-center text-sm text-muted-foreground">
-          No routines yet — add your first one above.
-        </Card>
+        <EmptyState
+          icon={ClipboardList}
+          title="No routines yet"
+          description="Add your first one above to start building your daily routine."
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {routines.map((routine) => (
