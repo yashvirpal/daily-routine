@@ -2,8 +2,9 @@
 
 ## Project Status
 
-Status: Foundation scaffolded, now merged into a single app
-Milestone: 0 — Foundation (complete) → Milestone 1 — Core features (next)
+Status: Live in production
+Phase: 1 — Core app + admin tooling (complete) → Phase 2 — Growth &
+monetization (next, see Next Tasks)
 
 ## Product Goal
 
@@ -11,10 +12,14 @@ A modern daily routine and habit tracker with:
 - Multi-user accounts (email/password) with an Admin/User role split
 - Routine management
 - Daily check-ins
-- Daily/weekly/monthly analytics
+- Daily/weekly/monthly/yearly analytics, both per-user and (for admins)
+  aggregated across every user
 - Streak tracking
 - Responsive UI
-- Vercel-compatible deployment
+- Deployed on Vercel (see ADR-008)
+
+Phase 2 (see Next Tasks): password reset, transactional/reminder email,
+Razorpay-backed subscriptions.
 
 ## Architecture
 
@@ -372,20 +377,63 @@ Key points worth knowing before touching any of this:
 - [x] Docker — dev (`docker-compose.yml`) and production (`Dockerfile` `runtime` target) images, built and smoke-tested
 - [x] **Merged the two apps into one** — dropped the separate NestJS API in favor of Next.js Route Handlers; resolves the earlier open API-deployment question (see ADR-004/ADR-006)
 - [x] **Flattened the monorepo** — no more `apps/`/`packages/`/workspaces; one `package.json`, one `node_modules`, at the repo root (see ADR-007)
+- [x] Light/dark theme (`next-themes`) with a custom warm terracotta/amber
+      brand palette (not the shadcn default grayscale) — CVD-validated
+      categorical colors for charts, contrast-checked against real rendered
+      pixels rather than assumed
+- [x] Daily/weekly/monthly/yearly analytics — period tabs (Today/Week/Month/
+      Year) on top of what was previously a fixed "last 7 days" view; Year
+      rolls up into 12 monthly buckets rather than 365 daily bars
+- [x] Admin panel overhaul — sidebar (Users / Routines / Analytics /
+      Settings) replacing the single stacked page; search + server-side
+      pagination on Users and Routines; per-user report drill-down
+      (`/admin/users/[id]`, reuses the same period-tabbed analytics report);
+      admin can edit another user's name/email/role (with a server-side
+      guard against self-demotion); aggregate cross-user Analytics tab
+      (same report component, no `userId` = aggregate mode, swaps streak
+      tiles for Total users/Active routines since streaks have no owner
+      attribution in aggregate)
+- [x] Admin Settings — site-wide config (`AppSettings` singleton row: site
+      name shown in the nav + browser tab, an "allow new registrations"
+      toggle enforced in `registerUser()`) plus self-service profile/password
+      update (`PATCH /api/auth/me`, requires current password to change it)
+- [x] **Deployed to production** — Vercel (`https://daily-routine-six-alpha.vercel.app`)
+      backed by Prisma Postgres (Accelerate). `lib/db.ts` detects the
+      `prisma://`/`prisma+postgres://` URL scheme at runtime and only
+      applies the Accelerate client extension then, so local dev keeps using
+      the shared Docker Postgres unchanged; `schema.prisma` gained a
+      `directUrl` (Prisma Postgres's Accelerate URL can't run migrations —
+      `directUrl` is what `migrate deploy` actually uses). Migrations applied
+      and a full register → login → session round-trip verified against the
+      live deployment.
 - [ ] UI — functional scaffold only; needs a real design pass (see Design Workflow)
 
 ## Current Milestone
 
-Milestone 1 — Core features & real UI
+Phase 1 — Core app + admin tooling: **complete and live in production.**
 
-## Next Tasks
+## Next Tasks — Phase 2 (growth & monetization)
 
-1. Run a design pass (via the `design` skill) for Today / Analytics / Settings / Login / Register / Admin and rebuild the UI from that
-2. Deploy — the app is a single, ordinary Next.js app now, so it's directly Vercel-deployable (or via its own Dockerfile) with no extra API-hosting decision to make (ADR-004 is superseded by ADR-006)
-3. Expand Playwright coverage (analytics assertions, routine edit/delete, weekly/monthly views, admin panel via a seeded test admin)
-4. Add unit tests for `lib/server/analytics.ts`'s streak/due-day logic (it has subtle UTC-boundary edge cases — see the bugs fixed during setup, below) and for the ownership checks in `lib/server/routines.ts`/`checkins.ts`
-5. Consider a password-reset flow and email verification — currently there's no way to recover a forgotten password
-6. Consider a Next.js `middleware.ts` for auth if the per-page `redirect()` boilerplate gets old as more protected routes get added
+1. Password reset flow (currently there's no way to recover a forgotten
+   password — self-service password *change* exists in Admin Settings, but
+   that requires knowing the current one)
+2. Welcome email on registration
+3. Daily reminder email (nudge toward today's due routines / streak at risk)
+4. Razorpay payment integration
+5. Subscription-based plans — gate features/limits by plan, driven by the
+   Razorpay integration above
+
+Carried over from Phase 1, still not done:
+
+6. Run a design pass (via the `design` skill) for Today / Analytics /
+   Settings / Login / Register / Admin and rebuild the UI from that
+7. Expand Playwright coverage (analytics assertions, routine edit/delete,
+   weekly/monthly/yearly views, admin panel via a seeded test admin)
+8. Add unit tests for `lib/server/analytics.ts`'s streak/due-day logic (it
+   has subtle UTC-boundary edge cases — see the bugs fixed during setup,
+   below) and for the ownership checks in `lib/server/routines.ts`/`checkins.ts`
+9. Consider a Next.js `middleware.ts` for auth if the per-page `redirect()`
+   boilerplate gets old as more protected routes get added
 
 ## Architectural Decisions
 
@@ -496,6 +544,48 @@ be independently versioned or reused by a hypothetical second app in this
 repo without re-extracting them — a non-issue while this repo holds exactly
 one app, worth reconsidering only if that changes.
 
+### ADR-008 — Production database: Prisma Postgres (via Vercel), Docker Postgres stays for local dev
+Decision: Production (`https://daily-routine-six-alpha.vercel.app`) uses
+Prisma Postgres, provisioned from Vercel's Storage tab (Accelerate-backed).
+Local dev is unchanged — still the shared Docker Postgres in `../database`.
+
+Reason: The shared local Postgres (ADR-003) is only reachable from the
+developer's machine/Docker network, not from Vercel's serverless functions.
+Needed *some* publicly reachable Postgres for production; Prisma Postgres
+was the one-click option already integrated into the Vercel project.
+
+Mechanics this required: `schema.prisma`'s datasource gained a `directUrl`
+— Prisma Postgres's primary `DATABASE_URL` is a `prisma+postgres://`
+Accelerate proxy URL that `prisma migrate`/`db push` can't run against
+directly, so `directUrl` (Prisma CLI uses it automatically over `url` for
+those commands) points at the real Postgres connection instead. `lib/db.ts`
+checks `DATABASE_URL`'s scheme at runtime and only applies
+`@prisma/extension-accelerate`'s `.withAccelerate()` for an actual
+`prisma(+postgres)://` URL, so the same code path serves both a Docker
+Postgres connection (dev) and an Accelerate one (prod) — the extended
+client is cast back to `PrismaClient` on export, since typing it as the
+true union of both branches makes TypeScript refuse to call any model
+method through it ("signatures ... not compatible with each other").
+
+Rollout snag worth remembering: Vercel auto-prefixes injected Storage env
+vars (`dr_DATABASE_URL`, `dr_PRISMA_DATABASE_URL`, `dr_POSTGRES_URL`) when
+an env var of that name already exists in the project — which it did here,
+left over from an earlier manual `DATABASE_URL` pointing at
+`localhost:5432`. The app kept reading that stale local value (crashing
+every request with "Can't reach database server at localhost:5432") through
+several redeploys, because *editing* `DATABASE_URL`'s value is a separate
+step from adding the new `dr_`-prefixed ones — Vercel's env var list doesn't
+make it obvious that a variable's value, not just its existence, needs
+updating, and its "Added Xh ago" timestamp doesn't change on an edit
+(only "Updated" does, easy to miss). Fixed by explicitly clearing and
+replacing `DATABASE_URL`'s value with `dr_PRISMA_DATABASE_URL`'s, adding a
+new `DIRECT_URL` set to `dr_POSTGRES_URL`'s value, then redeploying.
+Verified via `prisma migrate deploy` against the direct connection and a
+live register → login → session round-trip against the deployed app.
+
+Trade-off accepted: `POSTGRES_PASSWORD` (docker-compose-only) has no
+purpose on Vercel — left unset there rather than treated as required.
+
 ## Change Log
 
 ### 2026-09-13
@@ -576,3 +666,49 @@ one app, worth reconsidering only if that changes.
   the Docker dev stack, AND a standalone run of the freshly-rebuilt
   production image (server.js now at the standalone output's own root, not
   nested).
+- **Light/dark theme** (explicit follow-up request, twice — first pass used
+  a generic blue brand color, second pass replaced it with a warmer
+  terracotta/amber more fitting a habit-streak app): wired up `next-themes`
+  (it was an unused dependency — nothing rendered the provider or a toggle
+  before this), replaced shadcn's default all-grayscale token set with a
+  real color combination in both light and dark, chart colors taken from
+  the `dataviz` skill's CVD-validated categorical palette. Contrast wasn't
+  assumed — checked via canvas-rendered pixel values (`getComputedStyle`
+  doesn't resolve `oklch()` to sRGB in this Chromium version) and by
+  screenshotting both themes.
+- **Daily/weekly/monthly/yearly analytics** (explicit follow-up request):
+  generalized the old fixed "last 7 days" analytics page into period tabs;
+  Year aggregates into 12 monthly buckets rather than 365 daily bars, capped
+  at today so an in-progress year's remaining months don't count as "due
+  and never completed" and drag its rate down (a real bug caught before
+  shipping, not after).
+- **Admin panel overhaul** (explicit follow-up request, in stages — first a
+  sidebar, then "also add search/pagination/analytics/settings"): sidebar
+  navigation (Users/Routines/Analytics/Settings) replacing the single
+  stacked page, with the admin-only auth guard centralized into a shared
+  layout instead of repeated per-page; search + server-side pagination on
+  Users/Routines; a per-user report drill-down reusing the same
+  period-tabbed analytics component generalized to also run in an
+  aggregate, no-single-owner mode for the admin's own cross-user Analytics
+  tab; admin editing of another user's name/email/role, with a server-side
+  (not just UI-disabled) guard against self-demotion; an `AppSettings`
+  singleton table (new migration) for site name + a registration-open
+  toggle actually enforced in `registerUser()`, plus self-service
+  profile/password change requiring the current password. Verified against
+  the real dev database throughout — registered/logged-in test accounts,
+  hit the API guards directly with curl bypassing the UI (403 for
+  non-admins, 400 for self-demotion, 409 for a duplicate email), not just
+  clicked through the browser.
+- Added a `git remote` and made the initial commit (not pushed, per
+  request) — `.claude/scheduled_tasks.lock` (runtime session state, not
+  project config) added to `.gitignore` first so it wasn't swept in.
+- **Deployed to production** (see ADR-008): Prisma Postgres via Vercel
+  Storage, `directUrl` added to `schema.prisma`, `lib/db.ts` made
+  environment-aware (Accelerate extension only for an actual
+  `prisma(+postgres)://` connection). Debugged a real rollout issue live
+  (stale `DATABASE_URL` surviving multiple redeploys because only its
+  *existence* was checked, not its value — see ADR-008) down to the actual
+  Vercel runtime log line, not just guessing from symptoms.
+- Marked this the end of **Phase 1**; recorded Phase 2 (password reset,
+  welcome/daily email, Razorpay, subscriptions) in Next Tasks per explicit
+  request.
