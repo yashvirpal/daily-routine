@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import type { Routine } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -95,7 +96,12 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
             <li key={routine.id}>
               <Card className="flex-row items-center justify-between p-4">
                 <div>
-                  <p>{routine.name}</p>
+                  <p className="flex items-center gap-2">
+                    {routine.name}
+                    {!routine.isActive && (
+                      <Badge variant="secondary">Inactive</Badge>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {routine.frequency === "DAILY"
                       ? "Every day"

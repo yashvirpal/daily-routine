@@ -31,29 +31,32 @@ export function Nav({ user, siteName }: { user: User | null; siteName: string })
   return (
     <nav className="border-b">
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-3">
-        <span className="mr-4 font-semibold">{siteName}</span>
+        <span className="mr-2 shrink-0 font-semibold whitespace-nowrap sm:mr-4">
+          {siteName}
+        </span>
         {user &&
           !isAdmin &&
           links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
+              aria-label={label}
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                "flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground sm:px-3",
                 pathname.startsWith(href)
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground",
               )}
             >
               <Icon className="size-4" />
-              {label}
+              <span className="hidden sm:inline">{label}</span>
             </Link>
           ))}
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           {user ? (
             <>
-              <span className="text-sm text-muted-foreground">
+              <span className="hidden text-sm text-muted-foreground sm:inline">
                 {user.name ?? user.email}
               </span>
               <Button variant="ghost" size="sm" onClick={logout}>

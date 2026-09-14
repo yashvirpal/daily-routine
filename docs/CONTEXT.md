@@ -834,3 +834,33 @@ purpose on Vercel — left unset there rather than treated as required.
   explicit `flex-col`, admin tables use plain `<div>` rows, not `<Card>`
   per row). Verified the checkbox still toggles correctly after the fix
   (checked state, strikethrough) and re-ran the full Playwright suite.
+- **Full-app design audit** (explicit follow-up request; `frontend-design`
+  subagent still not loaded this session, did it directly again): seeded
+  real routines + 10 days of check-ins and swept every screen — every
+  auth page, Today/Analytics (all 4 periods)/Settings, every admin screen,
+  each in light + dark + a 390px mobile viewport — rather than reviewing
+  code or empty states again. Two real findings, both fixed:
+  1. **Mobile header overflow** (previously flagged, never fixed): a
+     regular user's header (Today/Analytics/Settings + name + logout +
+     theme toggle) overflowed at 390px, wrapping "Daily Routine" mid-word.
+     Confirmed this was already fine for admins (their header dropped its
+     links entirely in the nav-split work) — only the user-facing header
+     needed it. Fixed by hiding nav-link labels and the user's name below
+     the `sm` breakpoint (icon-only links, `aria-label` kept for
+     accessibility) rather than a heavier hamburger-menu rework.
+  2. Inactive routines (`isActive: false`) showed no visual distinction in
+     a user's own Settings list, unlike the admin routine table which
+     already badges active/inactive — added the same `Badge`. Traced
+     whether this state is actually reachable first: it isn't currently
+     (routine deletion is a hard delete, no UI ever sets `isActive:
+     false`) — added it anyway for consistency with the admin view and
+     because `listRoutines`'s own `includeInactive` flag implies the
+     original intent was for it to be visible here.
+  Everything else audited clean: all auth pages, dark mode throughout, the
+  sidebar's mobile stacking, admin tables at mobile width. (The Year
+  view's flat 100% bars for past months aren't a bug — confirmed against
+  the existing due-date rule: a routine seeded "today" isn't due on any
+  earlier date, so those days have no due count and default to 100% per
+  existing convention.) Full Playwright suite passes; the "N" circle
+  visible in every screenshot is Next.js's own dev-mode indicator, not an
+  app element.
