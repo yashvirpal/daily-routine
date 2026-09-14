@@ -1,11 +1,14 @@
 import "server-only";
+import * as crypto from "crypto";
 import * as bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import type { User as PrismaUser } from "@/lib/db";
 import { getAppSettings } from "@/lib/server/app-settings";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "@/lib/server/email";
 import type { LoginInput, RegisterInput, UpdateSelfInput, User } from "@/lib/types";
 
 const SALT_ROUNDS = 10;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export class AuthError extends Error {}
 
@@ -18,6 +21,10 @@ function toPublicUser(user: PrismaUser): User {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- discarding passwordHash on purpose
   const { passwordHash: _passwordHash, createdAt, ...rest } = user;
   return { ...rest, createdAt: createdAt.toISOString() };
+}
+
+function hashToken(rawToken: string): string {
+  return crypto.createHash("sha256").update(rawToken).digest("hex");
 }
 
 export async function registerUser(input: RegisterInput) {
@@ -40,6 +47,12 @@ export async function registerUser(input: RegisterInput) {
   const user = await prisma.user.create({
     data: { email: input.email, passwordHash, name: input.name, role },
   });
+
+  // Never let a slow/broken email provider fail registration — email.ts's
+  // send() already swallows its own errors, this await just keeps the
+  // ordering sane (send after the user actually exists).
+  await sendWelcomeEmail(user.email, user.name);
+
   return toPublicUser(user);
 }
 
@@ -92,4 +105,52 @@ export async function updateSelf(
     },
   });
   return toPublicUser(updated);
+}
+
+/** Issues a password-reset link if `email` belongs to an account — always
+ * resolves either way (never reveals whether the email exists, so this
+ * can't be used to enumerate registered accounts). Invalidates any earlier
+ * unused reset tokens for the account first, so only the newest link works. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return;
+
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: user.id, usedAt: null },
+  });
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  });
+
+  await sendPasswordResetEmail(user.email, rawToken);
+}
+
+/** Redeems a password-reset token. Throws AuthError if it's missing,
+ * already used, or expired — the token row itself is deleted either way
+ * once redeemed successfully, so it can't be replayed. */
+export async function resetPassword(
+  rawToken: string,
+  newPassword: string,
+): Promise<void> {
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(rawToken) },
+  });
+  if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+    throw new AuthError("This reset link is invalid or has expired");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
 }

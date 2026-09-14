@@ -406,6 +406,10 @@ Key points worth knowing before touching any of this:
       `directUrl` is what `migrate deploy` actually uses). Migrations applied
       and a full register → login → session round-trip verified against the
       live deployment.
+- [x] Email — password reset (`/forgot-password`, `/reset-password`),
+      welcome email on registration, and a daily summary email via Vercel
+      Cron, all through `lib/server/email.ts` (Resend; a no-op logger until
+      `RESEND_API_KEY` is set — see Next Tasks)
 - [ ] UI — functional scaffold only; needs a real design pass (see Design Workflow)
 
 ## Current Milestone
@@ -414,25 +418,34 @@ Phase 1 — Core app + admin tooling: **complete and live in production.**
 
 ## Next Tasks — Phase 2 (growth & monetization)
 
-1. Password reset flow (currently there's no way to recover a forgotten
-   password — self-service password *change* exists in Admin Settings, but
-   that requires knowing the current one)
-2. Welcome email on registration
-3. Daily reminder email (nudge toward today's due routines / streak at risk)
-4. Razorpay payment integration
-5. Subscription-based plans — gate features/limits by plan, driven by the
-   Razorpay integration above
+- [x] Password reset flow — `/forgot-password` + `/reset-password`,
+      single-use hashed tokens (`PasswordResetToken`, 1h expiry), no email
+      enumeration (same response either way)
+- [x] Welcome email on registration
+- [x] Daily summary email — Vercel Cron (`vercel.json`, 8am UTC) hits
+      `/api/cron/daily-summary`, `Authorization: Bearer $CRON_SECRET`-gated
+- [ ] Razorpay payment integration — explicitly deferred, doing this later
+- [ ] Subscription-based plans — gate features/limits by plan, driven by the
+      Razorpay integration above; also deferred with it
+
+All three shipped items go through `lib/server/email.ts` (Resend). Not yet
+wired to a real Resend API key/domain — `RESEND_API_KEY` unset just logs
+and skips instead of sending, verified that way (register/forgot-password/
+reset-password/cron all exercised end-to-end against the real dev DB, cron
+processed all 50 seeded users with 0 errors). Set `RESEND_API_KEY` (and
+ideally `EMAIL_FROM` on a verified domain) to actually send.
 
 Carried over from Phase 1, still not done:
 
-6. Run a design pass (via the `design` skill) for Today / Analytics /
+1. Run a design pass (via the `design` skill) for Today / Analytics /
    Settings / Login / Register / Admin and rebuild the UI from that
-7. Expand Playwright coverage (analytics assertions, routine edit/delete,
-   weekly/monthly/yearly views, admin panel via a seeded test admin)
-8. Add unit tests for `lib/server/analytics.ts`'s streak/due-day logic (it
+2. Expand Playwright coverage (analytics assertions, routine edit/delete,
+   weekly/monthly/yearly views, admin panel via a seeded test admin, and now
+   password reset)
+3. Add unit tests for `lib/server/analytics.ts`'s streak/due-day logic (it
    has subtle UTC-boundary edge cases — see the bugs fixed during setup,
    below) and for the ownership checks in `lib/server/routines.ts`/`checkins.ts`
-9. Consider a Next.js `middleware.ts` for auth if the per-page `redirect()`
+4. Consider a Next.js `middleware.ts` for auth if the per-page `redirect()`
    boilerplate gets old as more protected routes get added
 
 ## Architectural Decisions
@@ -712,3 +725,18 @@ purpose on Vercel — left unset there rather than treated as required.
 - Marked this the end of **Phase 1**; recorded Phase 2 (password reset,
   welcome/daily email, Razorpay, subscriptions) in Next Tasks per explicit
   request.
+- **Phase 2, minus payments** (explicit follow-up request — Razorpay/
+  subscriptions deliberately deferred): password reset (`PasswordResetToken`
+  model — new migration, single-use, SHA-256-hashed, 1h expiry, no email
+  enumeration), welcome email on registration, and a daily summary email
+  via Vercel Cron, all through a new `lib/server/email.ts` (Resend, chosen
+  over SMTP/SendGrid/etc. per explicit request) that logs-and-skips rather
+  than throwing when `RESEND_API_KEY` is unset — registration/reset flows
+  can't be broken by an email provider outage or a missing key. Verified
+  against the real dev DB, not just typechecked: the full request → reset →
+  redeem round-trip via curl (including a reused-token rejection and a
+  garbage-token rejection, both via the real API, not asserted from
+  reading the code), and the cron endpoint against all 50 seeded users
+  (0 errors). Confirmed `next build` doesn't choke on the new
+  `useSearchParams()` usage in the reset-password page (wrapped in
+  `Suspense`, as the framework requires).

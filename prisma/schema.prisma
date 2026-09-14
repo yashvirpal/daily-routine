@@ -48,7 +48,27 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  routines Routine[]
+  routines             Routine[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+/// A "forgot password" link. `tokenHash` (not the raw token) is what's
+/// stored, so a DB leak alone can't be used to reset anyone's password —
+/// the raw token only ever exists in the emailed link and briefly in
+/// memory when checking it. Single-use (`usedAt`) and short-lived
+/// (`expiresAt`).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Routine {

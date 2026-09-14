@@ -11,6 +11,15 @@ export const LoginSchema = z.object({
   password: z.string(),
 });
 
+export const ForgotPasswordSchema = z.object({
+  email: z.email(),
+});
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
 const FREQUENCIES = ["DAILY", "WEEKLY", "CUSTOM"] as const;
 
 export const CreateRoutineSchema = z.object({

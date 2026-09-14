@@ -19,6 +19,15 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
 /** Admin-only: a user row with their routine count. */
 export interface AdminUserSummary extends User {
   routineCount: number;
