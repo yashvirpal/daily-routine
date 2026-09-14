@@ -18,6 +18,13 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Only meaningful in production (Prisma Postgres/Accelerate): DATABASE_URL
+  // there is a "prisma+postgres://" proxy URL that `prisma migrate`/`db push`
+  // can't use directly, so those commands use this real Postgres URL instead
+  // — Prisma CLI picks directUrl over url automatically when both are set.
+  // Local dev (Docker) has no proxy, so DIRECT_URL is just a copy of
+  // DATABASE_URL there — see .env.example.
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {

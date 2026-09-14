@@ -20,6 +20,9 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-postgres:5432/app?schema=daily_routine
+      # Required by schema.prisma's `directUrl` — same connection, no proxy
+      # in local/Docker dev (see the comment on DIRECT_URL in .env.example).
+      DIRECT_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db-postgres:5432/app?schema=daily_routine
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - .:/repo
