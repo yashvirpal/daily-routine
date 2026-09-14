@@ -15,6 +15,7 @@ A modern daily routine and habit tracker with:
 - Daily/weekly/monthly/yearly analytics, both per-user and (for admins)
   aggregated across every user
 - Streak tracking
+- Password reset, welcome email, daily summary email (Resend)
 - Responsive UI
 - Deployed on Vercel (see ADR-008)
 
@@ -187,9 +188,35 @@ admin-invite flow. Everyone who registers after that gets `USER`.
 
 Unique on `(routineId, date)` — one log per routine per day. Indexed on `date`.
 
-See `prisma/schema.prisma` for the source of truth. No schema changes were
-needed for either consolidation (merging the apps, then flattening the
-monorepo) — `User`/`Routine`/`DailyLog` are unchanged from the original design.
+### AppSettings
+
+Singleton row (`id` always `"singleton"`, lazily created on first read/write
+— no seed step, same philosophy as the first-user-becomes-admin bootstrap).
+
+| Field | Type | Notes |
+|---|---|---|
+| id | String | always `"singleton"` |
+| siteName | String | default `"Daily Routine"`; shown in the nav + browser tab |
+| registrationOpen | Boolean | default true; enforced in `registerUser()` |
+| updatedAt | DateTime | |
+
+### PasswordResetToken
+
+| Field | Type | Notes |
+|---|---|---|
+| id | String (cuid) | PK |
+| userId | String | FK → User, cascade delete |
+| tokenHash | String | unique; SHA-256 of the raw token — the raw token only ever exists in the emailed link |
+| expiresAt | DateTime | 1 hour from issue |
+| usedAt | DateTime? | set on redemption; a used or expired token is rejected |
+| createdAt | DateTime | |
+
+`User`/`Routine`/`DailyLog` are unchanged from the original design (no
+schema changes were needed for either consolidation — merging the apps,
+then flattening the monorepo). `AppSettings` and `PasswordResetToken` were
+added later, for Admin Settings and the password-reset flow respectively —
+see `prisma/schema.prisma` for the source of truth and `prisma/migrations/`
+for the full history.
 
 ## Server Components vs. Route Handlers
 
@@ -208,10 +235,13 @@ entirely and call the business logic in `lib/server/*.ts` directly.
   (`lib/auth.ts`'s `getSession()`), validate the body with `zod`
   (`lib/validation.ts`), call the matching `lib/server/*` function, return
   `NextResponse.json(...)`. Only endpoints an actual Client Component calls
-  exist: register/login/logout/me, create/update/delete routine, upsert
-  check-in. **There are no GET routines/checkins/admin Route Handlers** —
-  nothing client-side needs them, since the pages that show that data are
-  Server Components reading straight from `lib/server/*`.
+  exist — see the API section below for the full, current list. **There
+  are still no GET routines/checkins/analytics Route Handlers** for
+  *listing* that data — nothing client-side needs them, since the pages
+  that show it are Server Components reading straight from
+  `lib/server/*`; admin *does* have a couple of `PATCH`/mutation routes
+  now (editing a user, site settings) since those are triggered from a
+  Client Component dialog/form, not just displayed.
 - **`lib/auth.ts`** — JWT sign/verify (via `jose`) + the httpOnly cookie
   (`getSession()`, `setSessionCookie()`, `clearSessionCookie()`). Replaces
   the old `JwtAuthGuard`/`RolesGuard` — there's no global guard now; each
@@ -234,14 +264,24 @@ new server-side read.
 
 ### Auth (`/api/auth`)
 - `POST /api/auth/register` — `{ email, password, name? }` → creates the
-  user (first ever registration becomes `ADMIN`), sets the auth cookie,
-  returns the user (no `passwordHash`)
+  user (first ever registration becomes `ADMIN`, subsequent ones rejected
+  with 409 if `AppSettings.registrationOpen` is false), sets the auth
+  cookie, returns the user (no `passwordHash`), sends the welcome email
+  (best-effort — see `lib/server/email.ts`)
 - `POST /api/auth/login` — `{ email, password }` → sets the auth cookie,
   returns the user
 - `POST /api/auth/logout` — clears the cookie
-- `GET /api/auth/me` — the current user, or 401 if not signed in (kept for
-  parity/future client-side use; nothing currently calls it — `layout.tsx`
-  gets the user server-side instead)
+- `GET /api/auth/me` — the current user, or 401 if not signed in
+- `PATCH /api/auth/me` — self-service profile update: `{ name?, email?,
+  currentPassword?, newPassword? }` — a password change requires
+  `currentPassword`; **not role-gated**, any signed-in user can update
+  their own account (used by `ProfileSettingsForm` on both the regular
+  user's `/settings` and `/admin/settings`)
+- `POST /api/auth/forgot-password` — `{ email }` → always `{ ok: true }`
+  regardless of whether the email exists (no enumeration); emails a
+  single-use, 1-hour link if it does
+- `POST /api/auth/reset-password` — `{ token, newPassword }` → redeems the
+  token (400 if missing/used/expired)
 
 ### Routines (`/api/routines`) — scoped to the signed-in user
 - `POST /api/routines` — create — `userId` is set from the session, not the body
@@ -257,18 +297,28 @@ not 403 — avoids confirming another user's routine id exists.
 - `POST /api/checkins` — upsert (idempotent create-or-update for a routine+date)
 - `DELETE /api/checkins?routineId=&date=` — remove one check-in
 
-### Analytics & Admin — no Route Handlers at all
-Both are read-only and only ever shown via Server Components
-(`(app)/analytics/page.tsx`, `(admin)/admin/page.tsx`), so they call
-`lib/server/analytics.ts` / `lib/server/admin.ts` directly — there's
-nothing for a Client Component to call, so there's no `/api/analytics` or
-`/api/admin` route at all. The admin page itself does the `ADMIN`-role
-check (`redirect("/today")` if not) since there's no global guard to do it
-centrally.
+### Admin (`/api/admin`) — `ADMIN`-only, checked per-route
+- `PATCH /api/admin/users/:id` — edit another user's `{ name?, email?,
+  role? }`; 403 for a non-admin, 400 if an admin tries to demote themselves
+  (self-lockout guard), 409 on a duplicate email
+- `GET`/`PATCH /api/admin/settings` — read/update `AppSettings`
+  (`{ siteName?, registrationOpen? }`)
+
+Listing users/routines/analytics is still read-only, shown only via Server
+Components (`lib/server/admin.ts`, `lib/server/analytics.ts` called
+directly) — no `GET` Route Handlers for those. The `ADMIN`-role check
+itself is centralized in `app/(admin)/admin/layout.tsx` (redirects a
+non-admin before any page under `/admin/*` renders), not repeated per-page.
+
+### Cron (`/api/cron/daily-summary`)
+`GET`, triggered by Vercel Cron (`vercel.json`, 8am UTC) —
+`Authorization: Bearer $CRON_SECRET` required if `CRON_SECRET` is set
+(optional locally). Emails every user their day's completion summary;
+per-user failures are collected, not fatal to the batch.
 
 Shared response/request shapes live in `lib/types/` (`User`, `Routine`,
-`CheckIn`, `DailySummary`, `PeriodSummary`, `RoutineStreak`,
-`AdminUserSummary`, `AdminRoutineSummary`, …).
+`CheckIn`, `DailySummary`, `PeriodSummary`, `YearlySummary`, `RoutineStreak`,
+`AdminUserSummary`, `AdminRoutineSummary`, `AppSettings`, `PageResult<T>`, …).
 
 ## Testing
 
