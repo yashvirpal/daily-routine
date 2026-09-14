@@ -93,7 +93,7 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
         <ul className="flex flex-col gap-2">
           {routines.map((routine) => (
             <li key={routine.id}>
-              <Card className="flex items-center justify-between p-4">
+              <Card className="flex-row items-center justify-between p-4">
                 <div>
                   <p>{routine.name}</p>
                   <p className="text-xs text-muted-foreground">

@@ -819,3 +819,18 @@ purpose on Vercel — left unset there rather than treated as required.
   non-admin end-to-end (change password via the new UI, log out, log back
   in with the new password), not just that it rendered, and reverted the
   test account's password back afterward. Full Playwright suite passes.
+- **Fixed a real routine-list layout bug** (explicit follow-up request to
+  look at the routine list's design): the checkbox+label on Today and the
+  name+delete-button on Settings were rendering as a centered vertical
+  stack instead of a left-right row. Root cause — `Card`'s base class is
+  `flex flex-col`; both components' own `className` added `items-center`
+  but never `flex-row`, so the base `flex-col` direction silently won
+  (Tailwind classes don't override each other by specificity, only by
+  which utility is actually present). Added seeded routines and
+  screenshotted the actual (non-empty) list to catch this — the earlier
+  empty-state pass never exercised this code path. Grepped every other
+  `<Card className="flex ...">` in the codebase for the same pattern
+  before calling it done (none found — `empty-state.tsx` already had an
+  explicit `flex-col`, admin tables use plain `<div>` rows, not `<Card>`
+  per row). Verified the checkbox still toggles correctly after the fix
+  (checked state, strikethrough) and re-ran the full Playwright suite.

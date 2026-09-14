@@ -62,7 +62,7 @@ export function RoutineCheckinList({ routines }: { routines: Routine[] }) {
         return (
           <motion.li key={routine.id} layout>
             <Card
-              className="flex cursor-pointer items-center gap-3 p-4"
+              className="flex-row items-center gap-3 p-4 cursor-pointer"
               onClick={() => toggle(routine)}
             >
               <Checkbox checked={isDone} disabled={isPending} />
