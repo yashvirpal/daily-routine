@@ -423,6 +423,13 @@ Key points worth knowing before touching any of this:
 - [x] Favicon — code-generated (`app/icon.tsx`/`apple-icon.tsx` via
       `next/og`'s `ImageResponse`, no external image tool needed): a
       checkmark on the brand terracotta, replacing the default Next.js icon
+- [x] Role-based nav split — an ADMIN's entire nav (own pages + admin
+      section, 7 links total) is one sidebar (`AppSidebar`, "Menu"/"Admin"
+      groups) shown on every page, not just `/admin/*`; the header drops to
+      just logo/user/theme-toggle for them. A regular USER keeps the
+      original header nav (Today/Analytics/Settings) unchanged — the two
+      roles now have fully distinct nav placements, not just an extra
+      "Admin" link bolted onto the same header
 - [ ] UI — still a functional scaffold beyond the layout pass above; a real
       design pass (see Design Workflow) is unstarted
 
@@ -775,3 +782,19 @@ purpose on Vercel — left unset there rather than treated as required.
   (confirmed `/icon`, `/apple-icon`, `/robots.txt`, `/sitemap.xml` all
   present in the route list), the full Playwright suite, and real
   screenshots of the before/after — not just code review.
+- **Role-based nav split** (explicit follow-up request): an ADMIN's entire
+  nav — their own pages (Today/Analytics/Settings) plus the admin section
+  (Users/Routines/Analytics/Settings) — moved into one sidebar
+  (`components/app-sidebar.tsx`, replacing the old admin-only
+  `admin-sidebar.tsx`) shown on every page for them, not just `/admin/*`;
+  the header (`Nav`) drops its links entirely for an admin rather than
+  showing the same destinations in two places. A regular USER's header nav
+  is unchanged. Moving the sidebar out of the `/admin` route group's own
+  layout and into the root layout was the real work here — `AdminLayout`
+  is now just the access guard, nothing else. The naming collision this
+  created (two "Analytics", two "Settings" — one personal, one admin) is
+  handled with "Menu"/"Admin" section labels rather than renaming either.
+  Verified both roles' actual rendered nav via screenshots (not just the
+  code), confirmed active-link highlighting doesn't cross-match between
+  the personal and admin "Analytics"/"Settings" pairs, and the full
+  Playwright suite still passes.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarCheck, ListChecks, Settings, ShieldCheck } from "lucide-react";
+import { CalendarCheck, ListChecks, Settings } from "lucide-react";
 import type { User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,9 @@ const links = [
 export function Nav({ user, siteName }: { user: User | null; siteName: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  // An admin's nav is the sidebar (see AppSidebar) — the header stays but
+  // drops the links, rather than showing the same destinations twice.
+  const isAdmin = user?.role === "ADMIN";
 
   async function logout() {
     await api.auth.logout();
@@ -30,6 +33,7 @@ export function Nav({ user, siteName }: { user: User | null; siteName: string })
       <div className="mx-auto flex max-w-5xl items-center gap-1 px-4 py-3">
         <span className="mr-4 font-semibold">{siteName}</span>
         {user &&
+          !isAdmin &&
           links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
@@ -45,20 +49,6 @@ export function Nav({ user, siteName }: { user: User | null; siteName: string })
               {label}
             </Link>
           ))}
-        {user?.role === "ADMIN" && (
-          <Link
-            href="/admin"
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-              pathname.startsWith("/admin")
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground",
-            )}
-          >
-            <ShieldCheck className="size-4" />
-            Admin
-          </Link>
-        )}
 
         <div className="ml-auto flex items-center gap-3">
           {user ? (

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppSidebar } from "@/components/app-sidebar";
 import { Nav } from "@/components/nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -59,6 +60,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     getAppSettings(),
   ]);
   const user = session ? await getUserById(session.sub) : null;
+  const isAdmin = user?.role === "ADMIN";
 
   return (
     <html
@@ -69,9 +71,16 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Nav user={user} siteName={siteName} />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-            {children}
-          </main>
+          {isAdmin ? (
+            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:flex-row sm:gap-8">
+              <AppSidebar />
+              <main className="min-w-0 flex-1">{children}</main>
+            </div>
+          ) : (
+            <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+              {children}
+            </main>
+          )}
           <SiteFooter />
           <Toaster />
         </ThemeProvider>
