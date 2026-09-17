@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { appUrl } from "@/lib/server/app-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const url = process.env.APP_URL || "http://localhost:3000";
+  const url = appUrl();
   return {
     rules: {
       userAgent: "*",
