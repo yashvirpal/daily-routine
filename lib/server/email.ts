@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { appUrl } from "@/lib/server/app-url";
 
 // Lazy singleton: constructing Resend with no/empty API key throws
 // immediately, and this module is imported by request paths (register,
@@ -15,10 +16,6 @@ function resend(): Resend | null {
  * actually delivers to the email you signed up to Resend with. Set
  * EMAIL_FROM once you verify your own domain there. */
 const FROM = process.env.EMAIL_FROM || "Daily Routine <onboarding@resend.dev>";
-
-function appUrl(): string {
-  return process.env.APP_URL || "http://localhost:3000";
-}
 
 function layout(title: string, bodyHtml: string): string {
   // Plain, table-free inline-styled HTML — works fine in every mail

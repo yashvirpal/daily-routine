@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getSession } from "@/lib/auth";
 import { getUserById } from "@/lib/server/auth";
 import { getAppSettings } from "@/lib/server/app-settings";
+import { appUrl } from "@/lib/server/app-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,7 +26,7 @@ const DESCRIPTION =
 
 export async function generateMetadata(): Promise<Metadata> {
   const { siteName } = await getAppSettings();
-  const url = process.env.APP_URL || "http://localhost:3000";
+  const url = appUrl();
   return {
     // Needed so relative URLs (Open Graph, etc.) resolve to an absolute one
     // instead of Next's build-time localhost default.
