@@ -914,3 +914,23 @@ purpose on Vercel — left unset there rather than treated as required.
   existing convention.) Full Playwright suite passes; the "N" circle
   visible in every screenshot is Next.js's own dev-mode indicator, not an
   app element.
+- **Fixed a significant, long-standing bug: Today's checkboxes never
+  reflected the actual persisted check-in state** (user report — check a
+  routine, leave the page, come back, it shows unchecked again, despite
+  Analytics correctly showing it as completed). Root cause:
+  `RoutineCheckinList`'s `completed` set was pure local React state,
+  initialized empty on every mount — the component was never given
+  today's actual check-ins to begin with, only ever updated by clicks
+  within the current session. This has likely been wrong since Phase 1;
+  the existing e2e test never caught it because it checks-then-asserts
+  without ever reloading. Fixed by having `TodayPage` fetch today's
+  `listCheckins()` alongside `listRoutines()` (a function that already
+  existed, just never called from here) and seed the component's initial
+  state from it. Strengthened the e2e test to reload after checking (and
+  again after unchecking) and assert the state survives — then verified
+  the strengthened test actually catches the old bug by stashing the fix,
+  confirming the test fails, and restoring it, rather than trusting a
+  green run alone. (The first version of the added assertions was itself
+  briefly flaky — clicking the checkbox doesn't wait for its fire-and-forget
+  upsert call to land before a follow-up reload could race it; fixed by
+  awaiting the `/api/checkins` response alongside the click.)
