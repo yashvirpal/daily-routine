@@ -16,8 +16,19 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function RoutineCheckinList({ routines }: { routines: Routine[] }) {
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
+export function RoutineCheckinList({
+  routines,
+  initialCompletedIds,
+}: {
+  routines: Routine[];
+  /** Routine IDs already checked in today, from the DB — without this the
+   * checkbox state was purely local and reset to "all unchecked" on every
+   * reload, even for a routine checked in moments before. */
+  initialCompletedIds: string[];
+}) {
+  const [completed, setCompleted] = useState<Set<string>>(
+    () => new Set(initialCompletedIds),
+  );
   const [isPending, startTransition] = useTransition();
 
   function toggle(routine: Routine) {
