@@ -1,0 +1,156 @@
+version: "2"
+type: frontend
+tech_stack:
+  - language: TypeScript
+  - framework: Next.js 16
+  - ui_library: React + Tailwind CSS
+  - other: Prisma, shadcn/ui, Playwright
+routes:
+  - path: /
+    file: app/page.tsx
+    auth_required: false
+    description: Landing page
+  - path: /login
+    file: app/(auth)/login/page.tsx
+    auth_required: false
+    description: User login page
+  - path: /register
+    file: app/(auth)/register/page.tsx
+    auth_required: false
+    description: User registration page
+  - path: /forgot-password
+    file: app/(auth)/forgot-password/page.tsx
+    auth_required: false
+    description: Password recovery page
+  - path: /reset-password
+    file: app/(auth)/reset-password/page.tsx
+    auth_required: false
+    description: Password reset page
+  - path: /today
+    file: app/(app)/today/page.tsx
+    auth_required: true
+    description: Daily routine engagement page
+  - path: /analytics
+    file: app/(app)/analytics/page.tsx
+    auth_required: true
+    description: User analytics dashboard
+  - path: /settings
+    file: app/(app)/settings/page.tsx
+    auth_required: true
+    description: User settings page
+  - path: /admin
+    file: app/(admin)/admin/page.tsx
+    auth_required: true
+    description: Admin dashboard
+  - path: /admin/users
+    file: app/(admin)/admin/users/page.tsx
+    auth_required: true
+    description: Admin users management
+  - path: /admin/routines
+    file: app/(admin)/admin/routines/page.tsx
+    auth_required: true
+    description: Admin routines management
+  - path: /admin/analytics
+    file: app/(admin)/admin/analytics/page.tsx
+    auth_required: true
+    description: Admin analytics dashboard
+  - path: /admin/settings
+    file: app/(admin)/admin/settings/page.tsx
+    auth_required: true
+    description: Admin site settings
+features:
+  - name: User Authentication
+    description: Sign in, sign up, recover, and reset account access
+    files:
+      - app/(auth)/login/page.tsx
+      - app/(auth)/register/page.tsx
+      - app/(auth)/forgot-password/page.tsx
+      - app/(auth)/reset-password/page.tsx
+      - lib/server/auth.ts
+    entry_route: /login
+    user_interactions:
+      - Fill email and password fields on the login form
+      - Submit the login form
+      - Create an account from the registration page
+      - Request a password reset email
+      - Set a new password using the reset token
+    api_calls:
+      - method: POST
+        endpoint: /api/auth/login
+      - method: POST
+        endpoint: /api/auth/register
+      - method: POST
+        endpoint: /api/auth/forgot-password
+      - method: POST
+        endpoint: /api/auth/reset-password
+    auth_required: false
+  - name: Daily Check-ins
+    description: Review and complete daily routine check-ins
+    files:
+      - app/(app)/today/page.tsx
+      - components/frontend/checkins/routine-checkin-list.tsx
+      - lib/server/checkins.ts
+    entry_route: /today
+    user_interactions:
+      - Open the today page
+      - View available routine items
+      - Mark a routine as complete or not complete
+      - Review completion status for the day
+    api_calls:
+      - method: GET
+        endpoint: /api/checkins
+      - method: POST
+        endpoint: /api/checkins
+    auth_required: true
+  - name: Routine Management
+    description: Manage routines and visibility for users
+    files:
+      - app/(app)/settings/page.tsx
+      - app/(admin)/admin/routines/page.tsx
+      - lib/server/routines.ts
+    entry_route: /today
+    user_interactions:
+      - View routine list
+      - Create, update, or archive routines
+      - Configure daily routine settings
+    api_calls:
+      - method: GET
+        endpoint: /api/routines
+      - method: POST
+        endpoint: /api/routines
+      - method: PUT
+        endpoint: /api/routines
+    auth_required: true
+  - name: Analytics Dashboard
+    description: Review progress and analytics across routine history
+    files:
+      - app/(app)/analytics/page.tsx
+      - app/(admin)/admin/analytics/page.tsx
+      - lib/server/analytics.ts
+    entry_route: /analytics
+    user_interactions:
+      - View charts and summary metrics
+      - Switch date ranges or filters if available
+      - Review streak and completion status
+    api_calls:
+      - method: GET
+        endpoint: /api/analytics
+    auth_required: true
+  - name: Admin Controls
+    description: Manage users, site settings, and app configuration
+    files:
+      - app/(admin)/admin/page.tsx
+      - app/(admin)/admin/users/page.tsx
+      - app/(admin)/admin/settings/page.tsx
+    entry_route: /admin
+    user_interactions:
+      - Open the admin dashboard
+      - Manage users and settings
+      - Review app-level analytics
+    api_calls:
+      - method: GET
+        endpoint: /api/admin/users
+      - method: GET
+        endpoint: /api/admin/settings
+    auth_required: true
+known_limitations: []
