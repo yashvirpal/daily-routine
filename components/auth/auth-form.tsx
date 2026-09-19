@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { api } from "@/lib/api";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
@@ -95,9 +96,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               </Link>
             )}
           </div>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             required
             minLength={8}
             value={password}

@@ -85,7 +85,8 @@ APP_URL="https://your-deployed-url"   # used to build links inside emails
 ```
 
 The daily summary email is triggered by a Vercel Cron job (`vercel.json`,
-8am UTC) hitting `/api/cron/daily-summary`, authenticated via
+16:30 UTC / 10pm IST — Vercel Cron always runs in UTC) hitting
+`/api/cron/daily-summary`, authenticated via
 `Authorization: Bearer $CRON_SECRET` — set `CRON_SECRET` in production (it's
 optional locally; the route allows unauthenticated calls if unset, so you
 can trigger it directly for testing).
