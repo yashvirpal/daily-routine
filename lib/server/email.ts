@@ -74,7 +74,7 @@ export async function sendPasswordResetEmail(to: string, rawToken: string) {
 export interface DailySummaryData {
   dueCount: number;
   completedCount: number;
-  completionRate: number; // 0-1
+  completionRate: number | null; // 0-1, null = nothing due today
   activeStreaks: number;
   bestCurrentStreak: number;
 }
@@ -84,14 +84,17 @@ export async function sendDailySummaryEmail(
   name: string | null,
   data: DailySummaryData,
 ) {
-  const percent = Math.round(data.completionRate * 100);
+  const percent =
+    data.completionRate == null ? null : Math.round(data.completionRate * 100);
   await send(
     to,
-    `Your daily summary: ${percent}% complete`,
+    percent == null
+      ? "Your daily summary: nothing due today"
+      : `Your daily summary: ${percent}% complete`,
     layout(
       `Hi${name ? ` ${name}` : ""} — here's today so far`,
-      `<p style="font-size:32px;font-weight:600;margin:0">${percent}%</p>
-       <p style="color:#666;margin-top:4px">${data.completedCount} of ${data.dueCount} routines completed today</p>
+      `<p style="font-size:32px;font-weight:600;margin:0">${percent == null ? "—" : `${percent}%`}</p>
+       <p style="color:#666;margin-top:4px">${percent == null ? "Nothing due today" : `${data.completedCount} of ${data.dueCount} routines completed today`}</p>
        ${
          data.activeStreaks > 0
            ? `<p>🔥 ${data.activeStreaks} active streak${data.activeStreaks === 1 ? "" : "s"}, best currently ${data.bestCurrentStreak} day${data.bestCurrentStreak === 1 ? "" : "s"}</p>`

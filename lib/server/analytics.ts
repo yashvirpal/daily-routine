@@ -1,10 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import type { Routine, DailyLog } from "@/lib/db";
-
-function toDateOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { isDue, toDateOnly } from "@/lib/scheduling";
 
 function eachDate(start: Date, end: Date): Date[] {
   const days: Date[] = [];
@@ -18,22 +15,13 @@ function eachDate(start: Date, end: Date): Date[] {
   return days;
 }
 
-/** Whether a routine is scheduled ("due") on the given date. */
-function isDue(
-  routine: Pick<Routine, "frequency" | "daysOfWeek" | "createdAt">,
-  date: Date,
-): boolean {
-  // Compare calendar days only — a routine created at any time today is due today.
-  if (toDateOnly(date) < toDateOnly(routine.createdAt)) return false;
-  if (routine.frequency === "DAILY") return true;
-  return routine.daysOfWeek.includes(date.getDay());
-}
-
 type DayBreakdown = {
   date: string;
   dueCount: number;
   completedCount: number;
-  completionRate: number;
+  /** 0-1, or `null` when nothing was due (no meaningful rate — distinct
+   * from 0%, which means things were due and none got done). */
+  completionRate: number | null;
 };
 
 /** Shared by getSummary/getYearlySummary (and their admin, all-users
@@ -76,7 +64,7 @@ async function computeDailyBreakdown(
       date: toDateOnly(date),
       dueCount,
       completedCount,
-      completionRate: dueCount === 0 ? 1 : completedCount / dueCount,
+      completionRate: dueCount === 0 ? null : completedCount / dueCount,
     };
   });
 
@@ -102,14 +90,14 @@ function bucketByMonth(days: DayBreakdown[], year: number) {
   }
   return buckets.map((b) => ({
     ...b,
-    completionRate: b.dueCount === 0 ? 1 : b.completedCount / b.dueCount,
+    completionRate: b.dueCount === 0 ? null : b.completedCount / b.dueCount,
   }));
 }
 
-function overallRate(days: DayBreakdown[]) {
+function overallRate(days: DayBreakdown[]): number | null {
   const totalDue = days.reduce((sum, d) => sum + d.dueCount, 0);
   const totalCompleted = days.reduce((sum, d) => sum + d.completedCount, 0);
-  return totalDue === 0 ? 1 : totalCompleted / totalDue;
+  return totalDue === 0 ? null : totalCompleted / totalDue;
 }
 
 /** Shared by getYearlySummary/getAdminYearlySummary: the [Jan 1, today-or-Dec-31]

@@ -36,6 +36,8 @@ enum Frequency {
   DAILY
   WEEKLY
   CUSTOM
+  MONTHLY
+  ONCE
 }
 
 model User {
@@ -85,6 +87,15 @@ model Routine {
   /// For WEEKLY/CUSTOM: days of week this routine is due, 0 (Sun) - 6 (Sat).
   /// Empty for DAILY.
   daysOfWeek  Int[]     @default([])
+  /// For MONTHLY (by-date mode): days of month this routine is due, 1-31.
+  daysOfMonth Int[]     @default([])
+  /// For MONTHLY (by-weekday mode): 1-4, or -1 for "last". Null if unused
+  /// (falls back to daysOfMonth).
+  monthlyWeekOrdinal Int?
+  /// For MONTHLY (by-weekday mode): 0 (Sun) - 6 (Sat). Null if unused.
+  monthlyWeekday     Int?
+  /// For ONCE: the single calendar date this routine is due. Null otherwise.
+  onceDate    DateTime? @db.Date
   targetCount Int       @default(1) // times per due day to mark complete
 
   isActive  Boolean  @default(true)

@@ -19,7 +19,10 @@ export interface CompletionPoint {
   tooltipLabel: string;
   dueCount: number;
   completedCount: number;
-  completionRate: number; // 0-1
+  /** 0-1, or `null` when nothing was due — rendered as an empty gap, not a
+   * 0% or 100% bar, so "nothing to do" is never confused with "did nothing"
+   * or "did everything". */
+  completionRate: number | null;
 }
 
 function CustomTooltip({
@@ -35,8 +38,9 @@ function CustomTooltip({
     <div className="rounded-md border bg-popover px-3 py-2 text-sm shadow-sm">
       <p className="font-medium">{point.tooltipLabel}</p>
       <p className="text-muted-foreground">
-        {point.completedCount}/{point.dueCount} completed (
-        {Math.round(point.completionRate * 100)}%)
+        {point.completionRate == null
+          ? "Nothing due"
+          : `${point.completedCount}/${point.dueCount} completed (${Math.round(point.completionRate * 100)}%)`}
       </p>
     </div>
   );
@@ -46,7 +50,7 @@ function CustomTooltip({
 export function CompletionChart({ data }: { data: CompletionPoint[] }) {
   const points = data.map((d) => ({
     ...d,
-    percent: Math.round(d.completionRate * 100),
+    percent: d.completionRate == null ? null : Math.round(d.completionRate * 100),
   }));
   // Thin out x-axis ticks once there are more bars than fit comfortably
   // (the Month view can have up to 31) — 12 (the Year view's month count)
