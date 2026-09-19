@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoutineCheckinList } from "@/components/frontend/checkins/routine-checkin-list";
 import { getSession } from "@/lib/auth";
+import { isDue } from "@/lib/scheduling";
 import { listCheckins } from "@/lib/server/checkins";
 import { listRoutines } from "@/lib/server/routines";
 
@@ -23,6 +24,7 @@ export default async function TodayPage() {
   const completedRoutineIds = (todaysCheckins ?? [])
     .filter((c) => c.completed)
     .map((c) => c.routineId);
+  const dueRoutines = routines.filter((r) => isDue(r, new Date()));
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,7 +39,7 @@ export default async function TodayPage() {
         </p>
       </div>
       <RoutineCheckinList
-        routines={routines}
+        routines={dueRoutines}
         initialCompletedIds={completedRoutineIds}
       />
     </div>

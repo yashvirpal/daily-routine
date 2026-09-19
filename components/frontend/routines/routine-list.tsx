@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import type { Routine } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -18,22 +19,54 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  RoutineScheduleFields,
+  defaultScheduleState,
+  isScheduleValid,
+  scheduleStateToInput,
+  type ScheduleState,
+} from "@/components/frontend/routines/routine-schedule-fields";
+import { EditRoutineDialog } from "@/components/frontend/routines/edit-routine-dialog";
+import { describeSchedule } from "@/lib/scheduling";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+
+/** describeSchedule() only says "Once — scheduled" for a ONCE routine (it
+ * doesn't know date-fns) — swap in the actual formatted date here. */
+function scheduleSummary(routine: Routine): string {
+  if (routine.frequency === "ONCE" && routine.onceDate) {
+    return `Once — ${format(new Date(`${routine.onceDate}T00:00:00`), "PPP")}`;
+  }
+  return describeSchedule(routine);
+}
 
 export function RoutineList({ routines }: { routines: Routine[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [schedule, setSchedule] = useState<ScheduleState>(defaultScheduleState());
   const [isPending, startTransition] = useTransition();
 
+  function resetForm() {
+    setName("");
+    setSchedule(defaultScheduleState());
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) resetForm();
+  }
+
   function addRoutine() {
-    if (!name.trim()) return;
+    if (!name.trim() || !isScheduleValid(schedule)) return;
     startTransition(async () => {
       try {
-        await api.routines.create({ name: name.trim() });
-        setName("");
+        await api.routines.create({
+          name: name.trim(),
+          ...scheduleStateToInput(schedule),
+        });
         setOpen(false);
+        resetForm();
         router.refresh();
       } catch {
         toast.error("Couldn't create routine — check the API server.");
@@ -55,7 +88,7 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="size-4" /> Add routine
@@ -65,18 +98,23 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
             <DialogHeader>
               <DialogTitle>New routine</DialogTitle>
             </DialogHeader>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="routine-name">Name</Label>
-              <Input
-                id="routine-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Morning stretch"
-                onKeyDown={(e) => e.key === "Enter" && addRoutine()}
-              />
+            <div className="flex flex-col gap-4 py-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="routine-name">Name</Label>
+                <Input
+                  id="routine-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Morning stretch"
+                />
+              </div>
+              <RoutineScheduleFields value={schedule} onChange={setSchedule} />
             </div>
             <DialogFooter>
-              <Button onClick={addRoutine} disabled={isPending || !name.trim()}>
+              <Button
+                onClick={addRoutine}
+                disabled={isPending || !name.trim() || !isScheduleValid(schedule)}
+              >
                 Create
               </Button>
             </DialogFooter>
@@ -103,19 +141,20 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {routine.frequency === "DAILY"
-                      ? "Every day"
-                      : `${routine.daysOfWeek.length} day(s)/week`}
+                    {scheduleSummary(routine)}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => removeRoutine(routine)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <EditRoutineDialog routine={routine} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    onClick={() => removeRoutine(routine)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
               </Card>
             </li>
           ))}

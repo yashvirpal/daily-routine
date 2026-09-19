@@ -1,4 +1,4 @@
-export type Frequency = "DAILY" | "WEEKLY" | "CUSTOM";
+export type Frequency = "DAILY" | "WEEKLY" | "CUSTOM" | "MONTHLY" | "ONCE";
 
 export interface Routine {
   id: string;
@@ -8,6 +8,10 @@ export interface Routine {
   color: string | null;
   frequency: Frequency;
   daysOfWeek: number[]; // 0 (Sun) - 6 (Sat), used for WEEKLY/CUSTOM
+  daysOfMonth: number[]; // 1-31, used for MONTHLY (by-date mode)
+  monthlyWeekOrdinal: number | null; // 1-4, or -1 for "last" (MONTHLY by-weekday mode)
+  monthlyWeekday: number | null; // 0 (Sun) - 6 (Sat) (MONTHLY by-weekday mode)
+  onceDate: string | null; // ISO date, used for ONCE
   targetCount: number;
   isActive: boolean;
   sortOrder: number;
@@ -22,6 +26,10 @@ export interface CreateRoutineInput {
   color?: string;
   frequency?: Frequency;
   daysOfWeek?: number[];
+  daysOfMonth?: number[];
+  monthlyWeekOrdinal?: number;
+  monthlyWeekday?: number;
+  onceDate?: string;
   targetCount?: number;
 }
 

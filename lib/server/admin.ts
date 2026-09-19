@@ -114,12 +114,15 @@ export async function listAllRoutines({
     prisma.routine.count({ where }),
   ]);
 
-  const items = rows.map(({ user, createdAt, updatedAt, ...routine }) => ({
-    ...routine,
-    createdAt: createdAt.toISOString(),
-    updatedAt: updatedAt.toISOString(),
-    ownerId: user.id,
-    ownerEmail: user.email,
-  }));
+  const items = rows.map(
+    ({ user, createdAt, updatedAt, onceDate, ...routine }) => ({
+      ...routine,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+      onceDate: onceDate ? onceDate.toISOString().slice(0, 10) : null,
+      ownerId: user.id,
+      ownerEmail: user.email,
+    }),
+  );
   return { items, total, page, pageSize };
 }

@@ -9,7 +9,7 @@ export interface DailySummary {
   date: string; // YYYY-MM-DD
   dueCount: number;
   completedCount: number;
-  completionRate: number; // 0-1
+  completionRate: number | null; // 0-1, null = nothing was due
 }
 
 export interface PeriodSummary {
@@ -17,7 +17,7 @@ export interface PeriodSummary {
   start: string; // YYYY-MM-DD
   end: string; // YYYY-MM-DD
   days: DailySummary[];
-  overallCompletionRate: number; // 0-1
+  overallCompletionRate: number | null; // 0-1, null = nothing was due
   streaks: RoutineStreak[];
 }
 
@@ -31,7 +31,7 @@ export interface MonthlyBucket {
   label: string; // "Jan"
   dueCount: number;
   completedCount: number;
-  completionRate: number; // 0-1
+  completionRate: number | null; // 0-1, null = nothing was due
 }
 
 /** A calendar-year report, bucketed by month (12 points) rather than by
@@ -39,6 +39,6 @@ export interface MonthlyBucket {
 export interface YearlySummary {
   year: string; // YYYY
   months: MonthlyBucket[];
-  overallCompletionRate: number; // 0-1
+  overallCompletionRate: number | null; // 0-1, null = nothing was due
   streaks: RoutineStreak[];
 }

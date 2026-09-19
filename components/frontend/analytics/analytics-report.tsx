@@ -36,6 +36,11 @@ function fullDateLabel(dateISO: string): string {
   });
 }
 
+/** `null` means nothing was due in the period — no meaningful rate to show. */
+function formatRate(rate: number | null): string {
+  return rate == null ? "—" : `${Math.round(rate * 100)}%`;
+}
+
 function StreakBadges({ streaks }: { streaks: RoutineStreak[] }) {
   if (streaks.length === 0) return null;
   return (
@@ -65,12 +70,12 @@ async function TodayReport({ userId }: { userId?: string }) {
     ? await getSummary(userId, today(), today())
     : await getAdminSummary(today(), today());
   const day = summary.days[0];
-  const percent = Math.round(day.completionRate * 100);
+  const percent = day.completionRate == null ? null : Math.round(day.completionRate * 100);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-3 gap-3">
-        <StatTile label="Completion rate" value={`${percent}%`} />
+        <StatTile label="Completion rate" value={formatRate(day.completionRate)} />
         {"totalUsers" in summary ? (
           <>
             <StatTile label="Total users" value={String(summary.totalUsers)} />
@@ -87,7 +92,11 @@ async function TodayReport({ userId }: { userId?: string }) {
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">
           Today&apos;s progress
         </h2>
-        <Progress value={percent} />
+        {percent == null ? (
+          <p className="text-sm text-muted-foreground">Nothing due today.</p>
+        ) : (
+          <Progress value={percent} />
+        )}
       </Card>
       {"streaks" in summary && <StreakBadges streaks={summary.streaks} />}
     </div>
@@ -124,7 +133,7 @@ async function RollingReport({
       <div className="grid grid-cols-3 gap-3">
         <StatTile
           label="Completion rate"
-          value={`${Math.round(summary.overallCompletionRate * 100)}%`}
+          value={formatRate(summary.overallCompletionRate)}
         />
         {"totalUsers" in summary ? (
           <>
@@ -172,7 +181,7 @@ async function YearReport({ userId, year }: { userId?: string; year: number }) {
       <div className="grid grid-cols-3 gap-3">
         <StatTile
           label="Completion rate"
-          value={`${Math.round(summary.overallCompletionRate * 100)}%`}
+          value={formatRate(summary.overallCompletionRate)}
         />
         {"totalUsers" in summary ? (
           <>

@@ -1,0 +1,15 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "daily-routine",
+    "projectPath": "/Users/yashvirpal/Projects/yp/daily-routine",
+    "testIds": [],
+    "additionalInstruction": "Review the application by exercising the main user flows and verifying the app works end-to-end in the local browser.",
+    "serverMode": "development",
+    "envs": {},
+    "envsFile": "/Users/yashvirpal/.testsprite/mcp/session-cfa42c66aa0993df.json"
+  }
+}

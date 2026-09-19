@@ -16,12 +16,14 @@ import type {
 function serializeRoutine(routine: {
   createdAt: Date;
   updatedAt: Date;
+  onceDate: Date | null;
   [key: string]: unknown;
 }): Routine {
   return {
     ...routine,
     createdAt: routine.createdAt.toISOString(),
     updatedAt: routine.updatedAt.toISOString(),
+    onceDate: routine.onceDate ? routine.onceDate.toISOString().slice(0, 10) : null,
   } as Routine;
 }
 
@@ -44,8 +46,20 @@ export async function getOwnedRoutine(userId: string, id: string) {
   return routine;
 }
 
+/**
+ * `onceDate` travels the wire as a bare `yyyy-MM-dd` string (matching the
+ * `@db.Date` column and `describeSchedule`/`isDue`'s string|Date handling),
+ * but Prisma's client requires a `Date` for a `DateTime` field — a raw
+ * string throws "Invalid value ... Expected ISO-8601 DateTime".
+ */
+function toPrismaOnceDate(onceDate: string | undefined): Date | undefined {
+  return onceDate ? new Date(onceDate) : undefined;
+}
+
 export function createRoutine(userId: string, input: CreateRoutineInput) {
-  return prisma.routine.create({ data: { ...input, userId } });
+  return prisma.routine.create({
+    data: { ...input, userId, onceDate: toPrismaOnceDate(input.onceDate) },
+  });
 }
 
 export async function updateRoutine(
@@ -55,7 +69,10 @@ export async function updateRoutine(
 ) {
   const owned = await getOwnedRoutine(userId, id);
   if (!owned) return null;
-  return prisma.routine.update({ where: { id }, data: input });
+  return prisma.routine.update({
+    where: { id },
+    data: { ...input, onceDate: toPrismaOnceDate(input.onceDate) },
+  });
 }
 
 export async function deleteRoutine(userId: string, id: string) {

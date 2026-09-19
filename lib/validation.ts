@@ -20,7 +20,7 @@ export const ResetPasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
-const FREQUENCIES = ["DAILY", "WEEKLY", "CUSTOM"] as const;
+const FREQUENCIES = ["DAILY", "WEEKLY", "CUSTOM", "MONTHLY", "ONCE"] as const;
 
 export const CreateRoutineSchema = z.object({
   name: z.string().min(1),
@@ -28,7 +28,11 @@ export const CreateRoutineSchema = z.object({
   icon: z.string().optional(),
   color: z.string().optional(),
   frequency: z.enum(FREQUENCIES).optional(),
-  daysOfWeek: z.array(z.int()).optional(),
+  daysOfWeek: z.array(z.int().min(0).max(6)).optional(),
+  daysOfMonth: z.array(z.int().min(1).max(31)).optional(),
+  monthlyWeekOrdinal: z.union([z.literal(-1), z.int().min(1).max(4)]).optional(),
+  monthlyWeekday: z.int().min(0).max(6).optional(),
+  onceDate: z.iso.date().optional(),
   targetCount: z.int().min(1).optional(),
 });
 

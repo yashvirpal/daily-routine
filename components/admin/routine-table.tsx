@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { describeSchedule } from "@/lib/scheduling";
 import type { AdminRoutineSummary } from "@/lib/types";
 
 export function RoutineTable({
@@ -23,6 +24,7 @@ export function RoutineTable({
               <div>
                 <p>{r.name}</p>
                 <p className="text-xs text-muted-foreground">{r.ownerEmail}</p>
+                <p className="text-xs text-muted-foreground">{describeSchedule(r)}</p>
               </div>
               <Badge variant={r.isActive ? "default" : "secondary"}>
                 {r.isActive ? "active" : "inactive"}
