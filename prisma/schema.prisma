@@ -104,9 +104,31 @@ model Routine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  checkIns DailyLog[]
+  checkIns      DailyLog[]
+  statusChanges RoutineStatusChange[]
 
   @@index([userId, isActive])
+}
+
+/// One row per active/inactive toggle — lets analytics answer "was this
+/// routine active on day X" instead of only "is it active right now", so
+/// pausing a routine doesn't erase or misrepresent history on either side
+/// of the toggle. Written by updateRoutine() whenever `isActive` changes;
+/// a routine with no rows here has simply always been active since
+/// creation (the Prisma-level default).
+model RoutineStatusChange {
+  id        String   @id @default(cuid())
+  isActive  Boolean
+  /// Calendar day this status took effect (time component ignored, same
+  /// convention as DailyLog.date) — the day the toggle was clicked.
+  changedAt DateTime @db.Date
+
+  routineId String
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([routineId, changedAt])
 }
 
 /// Site-wide config, admin-editable. Singleton row (id is always
