@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { ClipboardList, Plus, Trash2 } from "lucide-react";
+import { ClipboardList, Pause, Play, Plus, Trash2 } from "lucide-react";
 import type { Routine } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,17 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
     });
   }
 
+  function toggleActive(routine: Routine) {
+    startTransition(async () => {
+      try {
+        await api.routines.update(routine.id, { isActive: !routine.isActive });
+        router.refresh();
+      } catch {
+        toast.error(`Couldn't update "${routine.name}".`);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
@@ -145,6 +156,20 @@ export function RoutineList({ routines }: { routines: Routine[] }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    aria-label={routine.isActive ? "Pause routine" : "Resume routine"}
+                    title={routine.isActive ? "Pause routine" : "Resume routine"}
+                    onClick={() => toggleActive(routine)}
+                  >
+                    {routine.isActive ? (
+                      <Pause className="size-4" />
+                    ) : (
+                      <Play className="size-4" />
+                    )}
+                  </Button>
                   <EditRoutineDialog routine={routine} />
                   <Button
                     variant="ghost"

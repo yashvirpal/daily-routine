@@ -59,6 +59,28 @@ export function isDue(routine: DueFields, date: Date): boolean {
   }
 }
 
+export type StatusChange = { isActive: boolean; changedAt: string | Date };
+
+/**
+ * Whether a routine was active on the given date, per its toggle history —
+ * distinct from `routine.isActive`, which is only the *current* state.
+ * A routine with no history has simply always been active since creation
+ * (matching the schema's default). `changes` needn't be pre-sorted.
+ */
+export function isActiveOn(changes: StatusChange[], date: Date): boolean {
+  let effective = true;
+  for (const change of [...changes].sort(
+    (a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime(),
+  )) {
+    if (toDateOnly(change.changedAt) <= toDateOnly(date)) {
+      effective = change.isActive;
+    } else {
+      break;
+    }
+  }
+  return effective;
+}
+
 const ORDINAL_LABEL: Record<number, string> = {
   1: "1st",
   2: "2nd",

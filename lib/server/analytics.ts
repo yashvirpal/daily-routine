@@ -1,7 +1,17 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import type { Routine, DailyLog } from "@/lib/db";
-import { isDue, toDateOnly } from "@/lib/scheduling";
+import { isActiveOn, isDue, toDateOnly } from "@/lib/scheduling";
+
+function groupByRoutine<T extends { routineId: string }>(
+  rows: T[],
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const row of rows) {
+    map.set(row.routineId, [...(map.get(row.routineId) ?? []), row]);
+  }
+  return map;
+}
 
 function eachDate(start: Date, end: Date): Date[] {
   const days: Date[] = [];
@@ -25,16 +35,23 @@ type DayBreakdown = {
 };
 
 /** Shared by getSummary/getYearlySummary (and their admin, all-users
- * variants): per-day due/completed counts for [start, end], plus the active
+ * variants): per-day due/completed counts for [start, end], plus the
  * routines fetched along the way (so callers needing streaks don't
- * re-query them). `userId` undefined = aggregate across every user. */
+ * re-query them). `userId` undefined = aggregate across every user.
+ *
+ * Deliberately NOT filtered to `isActive: true`: every range this function
+ * is ever called with ends at "today" (see yearRange/RollingReport), so
+ * this is always reporting on what already happened — pausing a routine
+ * must not erase its history. (A routine's current `isActive` only affects
+ * what's still due *going forward*, which is `listRoutines`'s concern —
+ * see app/(app)/today/page.tsx — not this function's.) */
 async function computeDailyBreakdown(
   userId: string | undefined,
   startDate: Date,
   endDate: Date,
 ): Promise<{ routines: Routine[]; days: DayBreakdown[] }> {
-  const routineWhere = userId ? { userId, isActive: true } : { isActive: true };
-  const [routines, logs] = await Promise.all([
+  const routineWhere = userId ? { userId } : {};
+  const [routines, logs, statusChanges] = await Promise.all([
     prisma.routine.findMany({ where: routineWhere }),
     prisma.dailyLog.findMany({
       where: {
@@ -43,6 +60,9 @@ async function computeDailyBreakdown(
         completed: true,
       },
     }),
+    prisma.routineStatusChange.findMany({
+      where: userId ? { routine: { userId } } : {},
+    }),
   ]);
 
   const logsByDate = new Map<string, DailyLog[]>();
@@ -50,9 +70,13 @@ async function computeDailyBreakdown(
     const key = toDateOnly(log.date);
     logsByDate.set(key, [...(logsByDate.get(key) ?? []), log]);
   }
+  const changesByRoutine = groupByRoutine(statusChanges);
 
   const days = eachDate(startDate, endDate).map((date) => {
-    const dueRoutines = routines.filter((r) => isDue(r, date));
+    const dueRoutines = routines.filter(
+      (r) =>
+        isDue(r, date) && isActiveOn(changesByRoutine.get(r.id) ?? [], date),
+    );
     const completedIds = new Set(
       (logsByDate.get(toDateOnly(date)) ?? []).map((l) => l.routineId),
     );
@@ -183,15 +207,22 @@ export async function getAdminYearlySummary(year: number) {
   };
 }
 
-/** Current + longest streak of consecutive due-and-completed days, per routine. */
+/** Current + longest streak of consecutive due-and-completed days, per
+ * routine. Days the routine was paused (per its status-change history —
+ * see isActiveOn()) are skipped, same as non-due days: they neither build
+ * nor break a streak. */
 export async function getStreaks(routines: Routine[]) {
   const results = [];
   for (const routine of routines) {
-    const logs = await prisma.dailyLog.findMany({
-      where: { routineId: routine.id, completed: true },
-      orderBy: { date: "desc" },
-    });
+    const [logs, statusChanges] = await Promise.all([
+      prisma.dailyLog.findMany({
+        where: { routineId: routine.id, completed: true },
+        orderBy: { date: "desc" },
+      }),
+      prisma.routineStatusChange.findMany({ where: { routineId: routine.id } }),
+    ]);
     const completedDates = new Set(logs.map((l) => toDateOnly(l.date)));
+    const activeOn = (date: Date) => isActiveOn(statusChanges, date);
 
     // Walk backwards from today (UTC calendar day, matching how dates are
     // stored — see the note in schema.prisma / docs/CONTEXT.md) counting
@@ -199,7 +230,7 @@ export async function getStreaks(routines: Routine[]) {
     let currentStreak = 0;
     const cursor = new Date(toDateOnly(new Date()));
     while (toDateOnly(cursor) >= toDateOnly(routine.createdAt)) {
-      if (!isDue(routine, cursor)) {
+      if (!isDue(routine, cursor) || !activeOn(cursor)) {
         cursor.setDate(cursor.getDate() - 1);
         continue;
       }
@@ -217,7 +248,7 @@ export async function getStreaks(routines: Routine[]) {
     const scanStart = new Date(toDateOnly(routine.createdAt));
     const scanEnd = new Date(toDateOnly(new Date()));
     for (const day of eachDate(scanStart, scanEnd)) {
-      if (!isDue(routine, day)) continue;
+      if (!isDue(routine, day) || !activeOn(day)) continue;
       if (completedDates.has(toDateOnly(day))) {
         running += 1;
         longestStreak = Math.max(longestStreak, running);

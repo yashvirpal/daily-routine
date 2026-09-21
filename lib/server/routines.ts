@@ -69,10 +69,32 @@ export async function updateRoutine(
 ) {
   const owned = await getOwnedRoutine(userId, id);
   if (!owned) return null;
-  return prisma.routine.update({
-    where: { id },
-    data: { ...input, onceDate: toPrismaOnceDate(input.onceDate) },
-  });
+
+  const togglesActive =
+    input.isActive !== undefined && input.isActive !== owned.isActive;
+
+  const [routine] = await prisma.$transaction([
+    prisma.routine.update({
+      where: { id },
+      data: { ...input, onceDate: toPrismaOnceDate(input.onceDate) },
+    }),
+    // Record when active/inactive changed (not just the current value) so
+    // analytics can tell "was this routine active on day X" — see
+    // isActiveOn() in lib/scheduling.ts. Today's date, since a toggle
+    // takes effect from the day it's clicked, not retroactively.
+    ...(togglesActive
+      ? [
+          prisma.routineStatusChange.create({
+            data: {
+              routineId: id,
+              isActive: input.isActive!,
+              changedAt: new Date(new Date().toISOString().slice(0, 10)),
+            },
+          }),
+        ]
+      : []),
+  ]);
+  return routine;
 }
 
 export async function deleteRoutine(userId: string, id: string) {
